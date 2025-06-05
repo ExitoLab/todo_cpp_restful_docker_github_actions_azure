@@ -1,0 +1,139 @@
+name: Build C++ Docker Image and Push to ACR
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - '**'
+      - '!README.md'
+      - '!docs/**'
+  pull_request:
+    branches: [ main ]
+
+# Required for OIDC authentication
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACR_NAME: todocpp
+  IMAGE_NAME: todo-cpp-restful
+  RESOURCE_GROUP: todo-cpp-project
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Azure Login using OIDC
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Login to Azure Container Registry
+      run: az acr login --name ${{ env.ACR_NAME }}
+
+    - name: Extract metadata for Docker
+      id: meta
+      run: |
+        echo "date=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+        echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+        
+        # Set image tags based on event type
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          echo "tags=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:pr-${{ github.event.number }}" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "tags=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest,${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }},${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+        else
+          echo "tags=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${{ github.sha }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Build C++ Docker image
+      run: |
+        echo "Building C++ Docker image..."
+        echo "Tags: ${{ steps.meta.outputs.tags }}"
+        
+        # Build with multiple tags
+        IFS=',' read -ra TAGS <<< "${{ steps.meta.outputs.tags }}"
+        
+        BUILD_ARGS=""
+        for tag in "${TAGS[@]}"; do
+          BUILD_ARGS="$BUILD_ARGS -t $tag"
+        done
+        
+        docker build $BUILD_ARGS \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+          --label "org.opencontainers.image.revision=${{ github.sha }}" \
+          --label "org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+          .
+
+    - name: Test Docker image (optional)
+      run: |
+        # Quick test to ensure the image was built successfully
+        docker images ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}
+        
+        # Optional: Run a quick container test
+        # docker run --rm ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest --version || true
+
+    - name: Push images to ACR
+      run: |
+        echo "Pushing images to Azure Container Registry..."
+        
+        # Push all tags
+        IFS=',' read -ra TAGS <<< "${{ steps.meta.outputs.tags }}"
+        for tag in "${TAGS[@]}"; do
+          echo "Pushing: $tag"
+          docker push $tag
+        done
+        
+        echo "✅ All images pushed successfully!"
+
+    - name: Show pushed images
+      run: |
+        echo "Images pushed to ACR:"
+        az acr repository show-tags --name ${{ env.ACR_NAME }} --repository ${{ env.IMAGE_NAME }} --output table
+
+    - name: Clean up local images (optional)
+      run: |
+        # Remove local images to free up space
+        docker image prune -f
+        
+    - name: Azure logout
+      run: az logout
+      if: always()
+
+  # Optional: Add a job to scan for vulnerabilities
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Azure Login using OIDC
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Run security scan on ACR image
+      run: |
+        # Enable Defender for Container Registries if not already enabled
+        az security auto-provisioning-setting update --name "containerRegistryVulnerabilityAssessments" --auto-provision "On" || true
+        
+        # Run vulnerability assessment
+        echo "Running security scan on the latest image..."
+        az acr task run --name quickrun --registry ${{ env.ACR_NAME }} --cmd "echo 'Security scan placeholder - implement based on your security requirements'" || true
+
+    - name: Azure logout
+      run: az logout
+      if: always()
