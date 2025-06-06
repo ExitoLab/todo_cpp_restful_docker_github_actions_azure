@@ -14,7 +14,7 @@ This project demonstrates creating a robust CI/CD pipeline for a C++ Restful Tod
 This project provides a CI/CD pipeline for a C++ application with the following capabilities:
 - **Code Compilation**: Automates the build process with CMake.
 - **Dockerization**: Containerizes the application for deployment.
-- **Deployment**: Pushes the Docker image to AWS ECR.
+- **Deployment**: Pushes the Docker image to Azure Container Registry (ACR).
 
 ## Technologies Used
 
@@ -22,7 +22,7 @@ This project provides a CI/CD pipeline for a C++ application with the following 
 - **CMake**: To manage the build system.
 - **Docker**: For containerization.
 - **GitHub Actions**: For CI/CD automation.
-- **AWS ECR**: To store and manage Docker images.
+- **Azure Container Registry**: To store and manage Docker images.
 
 ## Prerequisites
 
@@ -32,4 +32,4 @@ This project provides a CI/CD pipeline for a C++ application with the following 
 ## Running the Pipeline
 - Commit and push your code to GitHub.
 - Monitor the workflow in the GitHub Actions tab.
-- Verify the Docker image in your AWS ECR repository.
+- Verify the Docker image in your ACR repository.
