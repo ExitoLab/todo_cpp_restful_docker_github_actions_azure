@@ -43,10 +43,9 @@ jobs:
       id: meta
       run: |
         echo "date=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
-        echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
         
         # Set image tags based on event type
-        echo "tags=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+        echo "tags=${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest,${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }},${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
 
     - name: Build C++ Docker image
       run: |
@@ -85,11 +84,6 @@ jobs:
       run: |
         echo "Images pushed to ACR:"
         az acr repository show-tags --name ${{ env.ACR_NAME }} --repository ${{ env.IMAGE_NAME }} --output table
-
-    - name: Clean up local images (optional)
-      run: |
-        # Remove local images to free up space
-        docker image prune -f
         
     - name: Azure logout
       run: az logout
