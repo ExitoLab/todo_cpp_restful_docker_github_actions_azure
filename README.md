@@ -1,6 +1,6 @@
-# Todo List C++ RESTFul Docker, GitHub Actions, and AWS ECR
+# Todo List C++ RESTFul Docker, GitHub Actions, and Azure Container Registry (ACR)
 
-This project demonstrates creating a robust CI/CD pipeline for a C++ Restful Todo List application using Docker, GitHub Actions, and AWS Elastic Container Registry (ECR).
+This project demonstrates creating a robust CI/CD pipeline for a C++ Restful Todo List application using Docker, GitHub Actions, and Azure Container Registry.
 
 ## Table of Contents
 
