@@ -85,11 +85,6 @@ az role assignment create --assignee $APP_ID \
   --role "AcrPull" \
   --scope $ACR_ID
 
-# Optional: Add Contributor role to resource group if needed for other operations
-# az role assignment create --assignee $APP_ID \
-#   --role "Contributor" \
-#   --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP"
-
 # Get ACR login server
 ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --query loginServer -o tsv)
 
